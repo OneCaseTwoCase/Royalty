@@ -81,9 +81,9 @@ switch ($page)
                 	/* import history
                 	 * add ken 3-27-2013
                 	 * */
-					$sqlh  = ' INSERT INTO royalty_sales_history (year_and_month, platform_id, currency_id, import_date) '
-						   . ' VALUES ( '.$year . $month . ',' . $platform . ',' . $currency . ',now()) ';           	
-					$dmi_db->query($sqlh);
+                	$sqlh  = ' INSERT INTO royalty_sales_history (year_and_month, platform_id, currency_id, import_date) '
+                           . ' VALUES ( '.$year . $month . ',' . $platform . ',' . $currency . ',now()) ';           	
+                	$dmi_db->query($sqlh);
                 	
                     //$maxRow = $xls->sheets[0]['numRows'];
                     $maxCol = $xls->sheets[0]['numCols'];
@@ -97,39 +97,39 @@ switch ($page)
                             $data = array();
                             $blankFlag = '';
 
-							for ($i = 1; $i <= $maxCol; $i++)
-							{
-								// not insert when id is blank
-								if ($raw[1] != '')
-								{
-									$data[] = $raw[$i];
-								}
-								else
-								{
-									$blankFlag = '1';
-								}
-							}
+                            for ($i = 1; $i <= $maxCol; $i++)
+                            {
+                                // not insert when id is blank
+                                if ($raw[1] != '')
+                                {
+                                    $data[] = $raw[$i];
+                                }
+                                else
+                                {
+                                    $blankFlag = '1';
+                                }
+                            }
 
-							if ($blankFlag == '')
-							{
-								$sql  = ' INSERT INTO royalty_sales (year_and_month, platform_id, relation_id, profit_rate, quantity, profit, currency_id, currency_rate, import_date) ';
-								$sql .= ' VALUES ( ';
-								$sql .= $year . $month . ',';
-								$sql .= '\'' . $platform . '\',';
-								foreach($data as $value)
-								{
-									$sql .= '\'' . mysql_safe($value) . '\',';
-								}
-								$sql .= '\'' . $currency . '\',';
-								$sql .= $currency_rate[0]['rate'] . ',';
-								$sql .= '\'' . date('Y/m/d H:i:s', time()) . '\'';
-								$sql .= ' ) ';
+                            if ($blankFlag == '')
+                            {
+                                $sql  = ' INSERT INTO royalty_sales (year_and_month, platform_id, relation_id, profit_rate, quantity, profit, currency_id, currency_rate, import_date) ';
+                                $sql .= ' VALUES ( ';
+                                $sql .= $year . $month . ',';
+                                $sql .= '\'' . $platform . '\',';
+                                foreach($data as $value)
+                                {
+                                    $sql .= '\'' . mysql_safe($value) . '\',';
+                                }
+                                $sql .= '\'' . $currency . '\',';
+                                $sql .= $currency_rate[0]['rate'] . ',';
+                                $sql .= '\'' . date('Y/m/d H:i:s', time()) . '\'';
+                                $sql .= ' ) ';
 
-								//echo $sql;
-								$result = $dmi_db->query($sql);
+                                //echo $sql;
+                  			    $result = $dmi_db->query($sql);
 
-								$importCount ++;
-							}
+                                $importCount ++;
+                            }
                         }
 
                         $index ++;
@@ -280,7 +280,7 @@ switch ($page)
 		break;
 
 
-case 'publisher':
+	case 'publisher':
         //select box
         $add_row = array('' => 'All');
         $publisher_array = $dmi_db->get_list2('publishers', 'publisher_name_english', 'publisher_name_english', 'publisher_id', $add_row);
@@ -314,6 +314,7 @@ case 'publisher':
                 $sql .= '       ,b.book_id ';
                 $sql .= '       ,a.relation_id ';
                 $sql .= '       ,f.label_name ';
+                $sql .= '       ,i.author_name ';
                 $sql .= '       ,CASE WHEN b.' . $platform[$i]['relation_column2'] . ' <> \'\' AND a.relation_id = b.' . $platform[$i]['relation_column'];
                 $sql .= '             THEN CONCAT(c.property_title, \' Part1\') ';
                 $sql .= '             WHEN b.' . $platform[$i]['relation_column2'] . ' <> \'\' AND a.relation_id = b.' . $platform[$i]['relation_column2'];
@@ -431,10 +432,15 @@ case 'publisher':
                 $sql .= '     ON b.label_id = f.label_id ';
                 $sql .= '   LEFT JOIN royalty_currency AS g ';
                 $sql .= '     ON a.currency_id = g.currency_id ';
+                $sql .= '   LEFT JOIN properties_authors AS h ';
+                $sql .= '     ON b.property_id = h.property_id ';
+                $sql .= '   LEFT JOIN authors AS i ';
+                $sql .= '     ON h.author_id = i.author_id ';
 
                 $sql .= '  WHERE a.year_and_month >= ' . $from_year . $from_month;
                 $sql .= '    AND a.year_and_month <= ' . $to_year . $to_month;
                 $sql .= '    AND a.platform_id = ' . $platform[$i]['platform_id'];
+                $sql .= '    AND h.credited_as = \'Author\' ';
                 if ($publisher != '')
                 {
                     $sql .= '    AND c.publisher_id = ' . $publisher;
@@ -504,34 +510,6 @@ case 'publisher':
 			}
 			/*add ken 9-20-2013 <--*/
 			
-			/*add author name*/
-			function get_author_name($book_id)
-			{
-			   global $dmi_db;
-			   $sql = "SELECT b.book_id, GROUP_CONCAT( i.author_name SEPARATOR ',' ) AS author_name
-						FROM properties_dmi AS b
-						LEFT JOIN properties_authors AS h ON b.property_id = h.property_id
-						LEFT JOIN authors AS i ON h.author_id = i.author_id
-						WHERE b.book_id = $book_id
-						AND h.credited_as = 'Author'";
-				$auth = $dmi_db->fetch_all2($sql);
-				if (count($auth) > 0) $name = $auth[0]['author_name'];
-				return $name;
-			}
-						
-		    if (count($data) > 0)
-            {
-                for($i=0; $i<count($data); $i++)
-                {
-                	if ($data[$i]["book_id"]) 
-                	{
-                		$names = get_author_name($data[$i]["book_id"]);
-                	}
-                	$data[$i]['author_name'] = $names;
-                }
-            }
-							
-			
             //write to excel
             if (count($data) == 0)
             {
@@ -548,7 +526,7 @@ case 'publisher':
         		$objWriter = new PHPExcel_Writer_Excel5($objPHPExcel);
         		$objWorksheet = $objPHPExcel->getActiveSheet();
 
-           		if($objWriter)
+        		if($objWriter)
         		{
         			$objWorksheet->setCellValue( 'A1', 'Term' );
         			$objWorksheet->setCellValue( 'B1', 'Publisher' );
@@ -629,20 +607,12 @@ case 'publisher':
 		$tpl = 'royalty_publisher.tpl';
 
 		break;
-		
-		
+
 
 	case 'localizer':
-		
-		$platform = $dmi_db->fetch_all('royalty_platform');
-		
-		foreach ($platform as $pkey => $pval)	$platform_array[$pkey] = $pval['name'];
-				
         //export
 		if ($_POST)
 		{
-			ini_set( 'memory_limit', '512M' );
-			
             $message = '';
             $sql = '';
 
@@ -651,23 +621,20 @@ case 'publisher':
             $from_month = $_POST['from_Month'];
             $to_year = $_POST['to_Year'];
             $to_month = $_POST['to_Month'];
-            $sel_platform = $_POST['sel_platform'];
 
- 
             //extract data
- 			
+            $platform = $dmi_db->fetch_all('royalty_platform');
             $relation = array('translator_1_reg', 'translator_2_reg' ,'translator_3_reg', 'editor_1_reg', 'editor_2_reg', 'editor_3_reg', 'lettering_1_reg', 'lettering_2_reg', 'lettering_3_reg');
             $rate = array('translator_1_percentage', 'translator_2_percentage' ,'translator_3_percentage', 'editor_1_percentage', 'editor_2_percentage', 'editor_3_percentage', 'lettering_1_percentage', 'lettering_2_percentage', 'lettering_3_percentage');
             $position = array('Translator', 'Translator', 'Translator', 'Editor', 'Editor', 'Editor', 'Letterer', 'Letterer', 'Letterer');
-         
-            
-//            for ($i = 0; $i < count($platform); $i++)
-//            {
-//                if ($i > 0)
-//                {
-//                    $sql .= ' UNION ALL ';
-//                }
-			    $i = $sel_platform;
+
+            for ($i = 0; $i < count($platform); $i++)
+            {
+                if ($i > 0)
+                {
+                    $sql .= ' UNION ALL ';
+                }
+
                 for ($j = 0; $j < count($relation); $j++)
                 {
                     if ($j > 0)
@@ -755,10 +722,10 @@ case 'publisher':
                     $sql .= '          ,g.currency ';
                     $sql .= '          ,rate )';
                 }
- //           }
+            }
             $sql .= ' ORDER BY pen_name, publish_title, position ';
             //echo $sql . '<br />';
-            
+
 			$data = $dmi_db->fetch_all2($sql);
 
             //write to excel
@@ -771,7 +738,7 @@ case 'publisher':
         		ini_set( 'memory_limit', '512M' );
         		require_once('/home/dmi/public_html/libs/PHPExcel/PHPExcel.php');
         		require_once('/home/dmi/public_html/libs/PHPExcel/PHPExcel/Writer/Excel5.php');
-                $file_name = "RoyaltyLocalizerReport2.xls";
+                $file_name = "RoyaltyLocalizerReport.xls";
 
         		$objPHPExcel = new PHPExcel();
         		$objWriter = new PHPExcel_Writer_Excel5($objPHPExcel);
@@ -842,7 +809,7 @@ case 'publisher':
 
         			$objWriter->save($file_name);
         			header('Content-type: application/vnd.ms-excel');
-        			header('Content-Disposition: attachment; filename="RoyaltyLocalizerReport-'.$platform[$i]['name'].'.xls"');
+        			header('Content-Disposition: attachment; filename="'.$file_name.'"');
         			readfile($file_name);
         			exit();
                 }
@@ -851,11 +818,9 @@ case 'publisher':
             //assign
             $smarty->assign('from_time', $from_year . '-' . $from_month . '-01');
             $smarty->assign('to_time', $to_year . '-' . $to_month . '-01');
-            $smarty->assign('sel_platform', $sel_platform);
         }
 
         //assign
-        $smarty->assign('platform_array', $platform_array);
         $smarty->assign('message', $message);
 		$tpl = 'royalty_localizer.tpl';
 
@@ -876,11 +841,6 @@ case 'publisher':
 		$startdate = new DateTime(get_GET('startdate'));		
 		$enddate = new DateTime(get_GET('enddate'));
 		
-		            
-		$loctotal = count($dmi_db->fetch_all2("SELECT * FROM localizer"));
-		$locsize = 50; //batch size
-		$locpages = ceil($loctotal / $locsize);
-		
 		
 		if ($_POST)
 		{   $message = '';
@@ -899,19 +859,18 @@ case 'publisher':
 			$_SESSION['isEmpty'] = true;
 			$_SESSION['periods'] = null;
 			$_SESSION['paidloys'] = array();
-			$_SESSION['batch'] = $_POST['batch'];
 			$idx = '0';
 		}
 		
-		if ($idx != '' )
+		if ($idx != '')
 		{
 			   		
-            $sql = "SELECT * FROM localizer order by reg_id LIMIT " . (($_SESSION['batch'] - 1) * $locsize + $idx) . ",1";
-//if ($idx=='198') var_dump($sql);
+            $sql = "SELECT * FROM localizer order by reg_id LIMIT $idx,1";
+            
 			$locs = $dmi_db->fetch_all2($sql);
 //var_dump($locs);
 					
-	     if ($locs && $idx < $locsize)
+	     if ($locs)
 	     {
 			
 			foreach ($locs as $loc){
@@ -940,7 +899,7 @@ case 'publisher':
 							.$tmp_startdate->format('Y'); 
 					
 					$periods[] = $period;
-					$loy = $royalty->get_royalty_batch($tmp_startdate->format('Y'),
+					$loy = $royalty->get_royalty($tmp_startdate->format('Y'),
 										$tmp_startdate->format('m'), 
 										$tmp_endmonth->format('Y'),
 										$tmp_endmonth->format('m'));
@@ -1032,7 +991,7 @@ case 'publisher':
         			$objWorksheet->setCellValueByColumnAndRow( $j++,1, 'First Name' );
         			$objWorksheet->setCellValueByColumnAndRow( $j++,1, 'Last Name' );
         			foreach ($_SESSION['periods'] as $period)
-        				//if(!is_empty_period($period,$_SESSION['periods'],$_SESSION['paidloys'])) //hide empty periods
+        				if(!is_empty_period($period,$_SESSION['periods'],$_SESSION['paidloys']))
         					$objWorksheet->setCellValueByColumnAndRow( $j++,1, $period );
         				
         			$objWorksheet->setCellValueByColumnAndRow( $j++,1, 'Cumulative Total' );
@@ -1045,7 +1004,7 @@ case 'publisher':
         			foreach ($_SESSION['paidloys'] as $paidloy) {
         				$j=0;
         				foreach ($paidloy as $key => $val)
-        					//if(!is_empty_period($key,$_SESSION['periods'],$_SESSION['paidloys'])) //hide empty periods
+        					if(!is_empty_period($key,$_SESSION['periods'],$_SESSION['paidloys']))
         						$objWorksheet->setCellValueByColumnAndRow( $j++,$rowCount, $val );
         				$rowCount++;
         			}
@@ -1061,8 +1020,6 @@ case 'publisher':
 		  }
 		}
 		$smarty->assign('message', $message);
-		$smarty->assign('locpages', $locpages);
-		$smarty->assign('locsize', $locsize);
 		$tpl = 'royalty_paid_localizer.tpl';
 
 		break;
